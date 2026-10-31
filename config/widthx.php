@@ -37,6 +37,13 @@ return [
     // Any other value refuses as well.
     'provisioning' => env('WIDTHX_PROVISIONING', 'create'),
 
+    // Site memberships (ADR 0006): the site this app belongs to, as declared in the Widthx registry. Tokens then
+    // carry the account's roles on it (`SiteRoles`, `widthx.role:…`, `@can('widthx-role', '…')`); a token for
+    // another site is refused. With a site set, web requests refresh the sign-in when the access token expires so
+    // role changes made at Widthx reach the app (refresh_session=false to add `widthx.fresh` to routes yourself).
+    'site' => env('WIDTHX_SITE'),
+    'refresh_session' => (bool) env('WIDTHX_REFRESH_SESSION', true),
+
     // Copy email and name from the ID token on every sign-in. Disable when the app owns these fields;
     // a newly created account always gets them.
     'sync_profile' => (bool) env('WIDTHX_SYNC_PROFILE', true),

@@ -15,6 +15,7 @@ use Widthx\Auth\Widthx;
 use Widthx\Laravel\AccountRefused;
 use Widthx\Laravel\AccountResolver;
 use Widthx\Laravel\SessionLinks;
+use Widthx\Laravel\SiteRoles;
 
 final class AuthController
 {
@@ -48,6 +49,12 @@ final class AuthController
         }
 
         $claims = $tokens->idTokenClaims;
+        // Site roles (ADR 0006): a token for another site than WIDTHX_SITE is refused, never trusted.
+        $roles = SiteRoles::fromClaims($claims);
+        if ($roles === null) {
+            Log::warning('widthx login refused: token for another site', ['site' => $claims['site'] ?? null]);
+            return redirect(config('widthx.home'))->with('widthx_error', 'site_mismatch');
+        }
         try {
             $user = $this->accounts->resolve($claims);
         } catch (AccountRefused $e) {
@@ -62,6 +69,8 @@ final class AuthController
             'refresh_token' => $tokens->refreshToken,
             'expires_at' => $tokens->expiresAt,
             'email_verified' => (bool) ($claims['email_verified'] ?? false),
+            'sub' => (string) $claims['sub'],
+            'roles' => $roles,
         ]);
         SessionLinks::record($request->session()->getId(), $claims['sid'] ?? null, (string) $claims['sub']);
         return redirect($pending?->returnTo ?? config('widthx.home'));

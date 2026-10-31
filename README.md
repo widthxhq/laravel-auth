@@ -110,6 +110,33 @@ A refused sign-in redirects to `WIDTHX_HOME` with `widthx_error` in the session:
 Logout invalidates the whole Laravel session, so an app that signs in other guards in the same session signs
 those out too.
 
+## Site roles (Widthx site memberships)
+
+When the app is a **site** in the Widthx registry, Widthx decides who may sign in and with which roles, and puts
+them in every token. Set the site:
+
+```dotenv
+WIDTHX_SITE=pharmed-admin
+```
+
+```php
+use Widthx\Laravel\SiteRoles;
+
+app(SiteRoles::class)->all();                 // ['admin']
+app(SiteRoles::class)->has('admin', 'owner'); // any of
+Route::get('/settings', …)->middleware('widthx.role:admin');
+@can('widthx-role', 'admin') … @endcan
+```
+
+- A token whose `site` is not `WIDTHX_SITE` is refused at sign-in (`widthx_error=site_mismatch`).
+- Roles change at Widthx without a new sign-in: with `WIDTHX_SITE` set, every `web` request refreshes the
+  sign-in once the access token has expired (≤ 15 min) and updates the roles. A refused refresh (access lost,
+  account disabled) ends the session (`widthx_error=access_revoked`, or 401 for JSON); if Widthx is unreachable
+  the current roles are kept and the refresh is retried. Concurrent requests share one refresh (cache lock), so
+  use a cache store that supports locks. `WIDTHX_REFRESH_SESSION=false` leaves it to you (`widthx.fresh` middleware).
+- What a role allows is your app's code. Never take roles from the browser.
+- APIs: `$request->attributes->get('widthx_token')->rolesFor('pharmed-admin')`.
+
 ## Protect an API
 
 ```php
